@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Clipboard feedback tooltip — shown by CopyButton when no triggerEl is provided */
+.copied-tip {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  padding: 3px 8px;
+  background: #1f2937;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 11px;
+  pointer-events: none;
+  z-index: 9999;
+  white-space: nowrap;
+}
