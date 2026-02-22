@@ -94,10 +94,10 @@ export function SuspendKeyPanel(_props: PanelProps) {
     // 2. Verify auth fails (expect 403)
     const r2 = await apiRequest('GET', '/v1/wallets', null, true)
     push({
-      label:  'Verify Auth (expect 403)',
+      label:  'Verify Auth (expect 401)',
       status: r2.status,
-      ok:     r2.status === 403,
-      note:   r2.status === 403 ? 'Auth correctly rejected ✓' : `Got ${r2.status} instead of 403`,
+      ok:     r2.status === 401,
+      note:   r2.status === 401 ? 'Auth correctly rejected ✓' : `Got ${r2.status} instead of 403`,
     })
     await delay(500)
 
