@@ -59,7 +59,7 @@ export function SuspendKeyPanel(_props: PanelProps) {
   const doAuthTest = async () => {
     setAuthLoading(true)
     setAuthResult(null)
-    const res = await apiRequest('GET', '/v1/apikeys', null, true)
+    const res = await apiRequest('GET', '/v1/wallets', null, true)
     setAuthResult({ status: res.status, ok: res.ok })
     setAuthLoading(false)
   }
@@ -92,7 +92,7 @@ export function SuspendKeyPanel(_props: PanelProps) {
     await delay(500)
 
     // 2. Verify auth fails (expect 403)
-    const r2 = await apiRequest('GET', '/v1/apikeys', null, true)
+    const r2 = await apiRequest('GET', '/v1/wallets', null, true)
     push({
       label:  'Verify Auth (expect 403)',
       status: r2.status,
@@ -116,7 +116,7 @@ export function SuspendKeyPanel(_props: PanelProps) {
     await delay(500)
 
     // 4. Verify auth succeeds
-    const r4 = await apiRequest('GET', '/v1/apikeys', null, true)
+    const r4 = await apiRequest('GET', '/v1/wallets', null, true)
     push({
       label:  'Verify Auth (expect 2xx)',
       status: r4.status,

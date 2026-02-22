@@ -86,7 +86,7 @@ export function ReactivateKeyPanel({ context }: PanelProps) {
   const doAuthTest = async () => {
     setAuthLoading(true)
     setAuthResult(null)
-    const res = await apiRequest('GET', '/v1/apikeys', null, true)
+    const res = await apiRequest('GET', '/v1/wallets', null, true)
     setAuthResult({ status: res.status, ok: res.ok })
     setAuthLoading(false)
   }
