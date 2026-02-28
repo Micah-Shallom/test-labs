@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { apiRequest } from '@/lib/api'
 import { JsonView } from '@/components/JsonView'
@@ -44,8 +44,12 @@ function rowBg(row: BatchRow): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function TestPermissionPanel(_props: PanelProps) {
-  const { storedCredentials, activeKey, keyVault } = useAppStore()
+  const { storedCredentials, activeKey, keyVault, scopes, fetchScopes } = useAppStore()
   const hasKey = !!storedCredentials?.key
+
+  // Fetch scopes for display name lookup
+  useEffect(() => { fetchScopes() }, [fetchScopes])
+  const scopeMap = new Map(scopes.map(s => [s.name, s]))
 
   // Look up the selected key's permissions from the vault
   const vaultEntry  = activeKey ? keyVault.find(e => e.id === activeKey.id) : null
@@ -197,15 +201,22 @@ export function TestPermissionPanel(_props: PanelProps) {
         <div className="mb-5">
           <p className="text-xs font-medium text-gray-500 mb-1.5">Key Permissions</p>
           <div className="flex flex-wrap gap-1.5">
-            {keyPerms.map((p) => (
-              <span
-                key={p}
-                className="inline-block px-2 py-0.5 text-xs font-mono rounded-full
-                           bg-blue-50 text-blue-700 border border-blue-200"
-              >
-                {p}
-              </span>
-            ))}
+            {keyPerms.map((p) => {
+              const meta = scopeMap.get(p)
+              return (
+                <span
+                  key={p}
+                  className="inline-block px-2 py-0.5 text-xs rounded-full
+                             bg-blue-50 text-blue-700 border border-blue-200"
+                  title={meta?.description ?? p}
+                >
+                  {meta?.display_name ?? p}
+                  <span className="text-blue-400 ml-1 font-mono text-[10px]">
+                    {meta ? (meta.read_only ? 'R' : 'RW') : ''}
+                  </span>
+                </span>
+              )
+            })}
           </div>
         </div>
       )}

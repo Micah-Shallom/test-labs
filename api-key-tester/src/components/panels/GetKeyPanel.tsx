@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { apiRequest } from '@/lib/api'
-import { decodePermissions } from '@/lib/permissions'
+import { decodePermissions } from '@/lib/scopes'
 import { timeAgo } from '@/lib/helpers'
 import { StatusBadge } from '@/components/StatusBadge'
 import { ModeBadge } from '@/components/ModeBadge'

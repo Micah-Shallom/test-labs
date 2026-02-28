@@ -1,3 +1,13 @@
+// ── Scope / permission types ──────────────────────────────────────────────────
+
+export interface ScopeMeta {
+  name:         string
+  display_name: string
+  description:  string
+  category:     string
+  read_only:    boolean
+}
+
 // ── Domain types ──────────────────────────────────────────────────────────────
 
 export interface ActiveKey {

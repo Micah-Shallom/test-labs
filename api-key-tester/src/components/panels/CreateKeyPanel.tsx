@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { apiRequest } from '@/lib/api'
-import { PERMISSIONS } from '@/lib/permissions'
+import type { ScopeMeta } from '@/types'
 import { CopyButton } from '@/components/CopyButton'
 import { JsonView } from '@/components/JsonView'
 import type { PanelProps } from './index'
@@ -29,7 +29,10 @@ interface CreatedKeyResponse {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function CreateKeyPanel({ context }: PanelProps) {
-  const { setActiveKey, setStoredCredentials, addToVault } = useAppStore()
+  const {
+    setActiveKey, setStoredCredentials, addToVault,
+    scopes, scopeCategories, scopesLoading, scopesLoaded, fetchScopes,
+  } = useAppStore()
 
   // Form fields
   const [name, setName] = useState('')
@@ -42,10 +45,20 @@ export function CreateKeyPanel({ context }: PanelProps) {
   const [rateLimitBurst, setRateLimitBurst] = useState('')
 
   // UI state
+  const [openCats, setOpenCats] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<FormErrors>({})
   const [loading, setLoading] = useState(false)
   const [createdKey, setCreatedKey] = useState<CreatedKeyResponse | null>(null)
   const [apiError, setApiError] = useState<{ status: number; message: string } | null>(null)
+
+  // ── Fetch scopes on mount ──────────────────────────────────────────────────
+  useEffect(() => { fetchScopes() }, [fetchScopes])
+
+  // Group scopes by category for rendering
+  const scopesByCategory = scopeCategories.reduce<Record<string, ScopeMeta[]>>((acc, cat) => {
+    acc[cat] = scopes.filter(s => s.category === cat)
+    return acc
+  }, {})
 
   // ── Prefill from panelContext (e.g. navigated from IP Allowlist panel) ──────
   const prefillApplied = useRef(false)
@@ -72,8 +85,25 @@ export function CreateKeyPanel({ context }: PanelProps) {
     })
   }
 
-  const selectAll = () => setSelectedPerms(new Set(PERMISSIONS))
+  const selectAll = () => setSelectedPerms(new Set(scopes.map(s => s.name)))
   const clearAll  = () => setSelectedPerms(new Set())
+
+  const toggleCat = (cat: string) =>
+    setOpenCats(prev => {
+      const next = new Set(prev)
+      next.has(cat) ? next.delete(cat) : next.add(cat)
+      return next
+    })
+
+  const toggleCatAll = (cat: string) => {
+    const catScopes = scopesByCategory[cat] ?? []
+    const allSelected = catScopes.every(s => selectedPerms.has(s.name))
+    setSelectedPerms(prev => {
+      const next = new Set(prev)
+      catScopes.forEach(s => allSelected ? next.delete(s.name) : next.add(s.name))
+      return next
+    })
+  }
 
   // ── Validation ─────────────────────────────────────────────────────────────
 
@@ -288,25 +318,79 @@ export function CreateKeyPanel({ context }: PanelProps) {
             </div>
           </div>
           <div
-            className={`grid grid-cols-2 sm:grid-cols-3 gap-1.5 border rounded p-3 bg-gray-50 transition-colors ${
+            className={`border rounded p-3 bg-gray-50 transition-colors ${
               errors.permissions ? 'border-red-400' : 'border-gray-200'
             }`}
           >
-            {PERMISSIONS.map((perm) => (
-              <label
-                key={perm}
-                className="flex items-center gap-1.5 text-xs cursor-pointer select-none
-                           text-gray-700 hover:text-gray-900 py-0.5"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedPerms.has(perm)}
-                  onChange={() => togglePerm(perm)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                {perm}
-              </label>
-            ))}
+            {scopesLoading && !scopesLoaded && (
+              <p className="text-xs text-gray-400 italic py-2">Loading scopes…</p>
+            )}
+            {!scopesLoading && scopes.length === 0 && (
+              <p className="text-xs text-gray-400 italic py-2">
+                Could not load scopes.{' '}
+                <button type="button" onClick={fetchScopes} className="underline text-blue-500">Retry</button>
+              </p>
+            )}
+            {scopeCategories.map((cat) => {
+              const catScopes = scopesByCategory[cat] ?? []
+              const selectedCount = catScopes.filter(s => selectedPerms.has(s.name)).length
+              const isOpen = openCats.has(cat)
+              return (
+                <div key={cat} className="border-b border-gray-200 last:border-b-0">
+                  <button
+                    type="button"
+                    onClick={() => toggleCat(cat)}
+                    className="w-full flex items-center justify-between py-2 px-1
+                               hover:bg-gray-100 transition-colors rounded"
+                  >
+                    <span className="text-xs font-semibold text-gray-600">{cat}</span>
+                    <span className="flex items-center gap-2">
+                      {selectedCount > 0 && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full
+                                         bg-blue-100 text-blue-700">
+                          {selectedCount}/{catScopes.length}
+                        </span>
+                      )}
+                      <span className="text-gray-400 text-xs">{isOpen ? '▾' : '▸'}</span>
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="pb-2 px-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleCatAll(cat)}
+                        className="text-[10px] text-blue-500 hover:text-blue-700 mb-1"
+                      >
+                        {selectedCount === catScopes.length ? 'Deselect all' : 'Select all'}
+                      </button>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+                        {catScopes.map((scope) => (
+                          <label
+                            key={scope.name}
+                            className="flex items-center gap-1.5 text-xs cursor-pointer select-none
+                                       text-gray-700 hover:text-gray-900 py-0.5"
+                            title={scope.description}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedPerms.has(scope.name)}
+                              onChange={() => togglePerm(scope.name)}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span>
+                              {scope.display_name}
+                              <span className="text-gray-400 ml-1 font-mono text-[10px]">
+                                {scope.read_only ? 'R' : 'RW'}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
           {errors.permissions && (
             <p className="text-xs text-red-600 mt-1">{errors.permissions}</p>

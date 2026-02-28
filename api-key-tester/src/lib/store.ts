@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { ActiveKey, StoredCredentials, RequestLogEntry, VaultEntry } from '@/types'
+import type { ActiveKey, StoredCredentials, RequestLogEntry, VaultEntry, ScopeMeta } from '@/types'
 
 // ── Store shape ───────────────────────────────────────────────────────────────
 
@@ -28,6 +28,12 @@ interface AppStore {
 
   /** Briefly true after orgId is auto-populated — used to flash the ConfigBar input */
   orgIdFlash: boolean
+
+  // ── Scopes (fetched from GET /v1/apikeys/scopes, not persisted) ──────────
+  scopes:          ScopeMeta[]
+  scopeCategories: string[]
+  scopesLoading:   boolean
+  scopesLoaded:    boolean
 
   // ── Actions ────────────────────────────────────────────────────────────────
   setBaseURL:           (url: string) => void
@@ -59,6 +65,8 @@ interface AppStore {
   navigateTo:           (panelId: string, context?: Record<string, unknown> | null) => void
   /** Sets orgId only if it is currently empty; triggers a 1-second green flash. */
   autoPopulateOrgId:    (orgId: string) => void
+  /** Fetch permission scopes from GET /v1/apikeys/scopes (no auth). Caches in memory. */
+  fetchScopes:          () => Promise<void>
 }
 
 // ── Store implementation ──────────────────────────────────────────────────────
@@ -78,6 +86,10 @@ export const useAppStore = create<AppStore>()(
       panelContext:      null,
       banners:           { sessionInvalid: false, serverUnreachable: false, apiKeyInvalid: false },
       orgIdFlash:        false,
+      scopes:            [],
+      scopeCategories:   [],
+      scopesLoading:     false,
+      scopesLoaded:      false,
 
       setBaseURL:           (url)   => set({ baseURL: url }),
       setSessionToken:      (token) => set({ sessionToken: token }),
@@ -135,6 +147,24 @@ export const useAppStore = create<AppStore>()(
           set({ orgId, orgIdFlash: true })
           setTimeout(() => set({ orgIdFlash: false }), 1000)
         }
+      },
+
+      fetchScopes: async () => {
+        if (get().scopesLoaded || get().scopesLoading) return
+        set({ scopesLoading: true })
+        try {
+          const res = await fetch(get().baseURL + '/v1/apikeys/scopes')
+          if (res.ok) {
+            const json = await res.json()
+            const data = json.data ?? json
+            set({
+              scopes:          data.scopes ?? [],
+              scopeCategories: data.categories ?? [],
+              scopesLoaded:    true,
+            })
+          }
+        } catch { /* silently fail — user can retry */ }
+        set({ scopesLoading: false })
       },
     }),
     {
